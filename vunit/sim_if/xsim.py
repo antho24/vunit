@@ -19,6 +19,7 @@ from shutil import copyfile
 from ..ostools import Process
 from . import SimulatorInterface, StringOption, BooleanOption, ListOfStringOption
 from ..exceptions import CompileError
+from ..vhdl_standard import VHDL
 
 LOGGER = logging.getLogger(__name__)
 
@@ -30,14 +31,19 @@ class XSimInterface(SimulatorInterface):
 
     name = "xsim"
     executable = os.environ.get("XSIM", "xsim")
-
     package_users_depend_on_bodies = True
     supports_gui_flag = True
+
+    compile_options = [
+        ListOfStringOption("xsim.xvhdl_flags"),
+        ListOfStringOption("xsim.xvlog_flags"),
+    ]
 
     sim_options = [
         StringOption("xsim.timescale"),
         BooleanOption("xsim.enable_glbl"),
         ListOfStringOption("xsim.xelab_flags"),
+        ListOfStringOption("xsim.xsim_flags"),
     ]
 
     @staticmethod
@@ -93,6 +99,8 @@ class XSimInterface(SimulatorInterface):
         super().__init__(output_path, gui)
         self._prefix = prefix
         self._libraries = {}
+        print(f"prefix = {prefix}")
+        self._output_path = output_path
         self._xvlog = self.check_tool("xvlog")
         self._xvhdl = self.check_tool("xvhdl")
         self._xelab = self.check_tool("xelab")
@@ -107,9 +115,20 @@ class XSimInterface(SimulatorInterface):
         """
         Setup library mapping
         """
+        self._project = project
+        print(f"output_path {self._output_path}")
+        self._xsimini_path = self._output_path + "\\xsim.ini"
+        print(f"xsim.ini path {self._xsimini_path}")
+        # Create xsim.ini for library mapping purpose
+        xsim_f = open(self._xsimini_path,"w")
 
         for library in project.get_libraries():
+            if library.name != "uvm":
+                xsim_f.write(f"{library.name}={library.directory}\n")
+                if not Path(library.directory).exists():
+                    os.makedirs(library.directory)
             self._libraries[library.name] = library.directory
+        xsim_f.close()
 
     def compile_source_file_command(self, source_file):
         """
@@ -134,20 +153,24 @@ class XSimInterface(SimulatorInterface):
         cmd = []
         for library_name, library_path in self._libraries.items():
             if library_path:
-                cmd += ["-L", f"{library_name}={library_path}"]
+                #cmd += ["-L", f"{library_name}={library_path}"]
+                cmd += ["-L", f"{library_name}"]
             else:
                 cmd += ["-L", library_name]
         return cmd
 
     @staticmethod
     def work_library_argument(source_file):
-        return ["-work", f"{source_file.library.name}={source_file.library.directory}"]
+        #return ["-work", f"{source_file.library.name}={source_file.library.directory}"]
+        return ["-work", f"{source_file.library.name}"]
 
     def compile_vhdl_file_command(self, source_file):
         """
         Returns the command to compile a vhdl file
         """
-        cmd = [join(self._prefix, self._xvhdl), source_file.name, "-2008"]
+        cmd = [join(self._prefix, self._xvhdl), "-initfile", self._xsimini_path, source_file.name, "-2008"]
+        #cmd = [join(self._prefix, self._xvhdl), source_file.name, "-2008"]
+        cmd += source_file.compile_options.get("xsim.xvhdl_flags",[])
         cmd += self.work_library_argument(source_file)
         cmd += self.libraries_command()
         return cmd
@@ -156,6 +179,8 @@ class XSimInterface(SimulatorInterface):
         """
         Returns the command to compile a vhdl file
         """
+        cmd += ["-initfile",f"{self._xsimini_path}"]
+        cmd += source_file.compile_options.get("xsim.xvlog_flags",[])
         cmd += self.work_library_argument(source_file)
         cmd += self.libraries_command()
         for include_dir in source_file.include_dirs:
@@ -173,6 +198,21 @@ class XSimInterface(SimulatorInterface):
         xelab_extra_args = config.sim_options.get("xsim.xelab_flags", xelab_extra_args)
 
         return xelab_extra_args
+
+    @staticmethod
+    def _xsim_extra_args(config):
+        """
+        Determine xelab_extra_args
+        """
+        config_xsim_flags = []
+        xsim_extra_args   = []
+        config_xsim_flags = config.sim_options.get("xsim.xsim_flags", config_xsim_flags)
+        for flags in config_xsim_flags:
+            xsim_extra_args += ["--testplusarg", f"\"{flags}\""]
+        # xsim_extra_args = ["--testplusarg"]
+        # xsim_extra_args += config.sim_options.get("xsim.xsim_flags", xsim_extra_args)
+
+        return xsim_extra_args
 
     def simulate(self, output_path, test_suite_name, config, elaborate_only):
         """
@@ -199,12 +239,14 @@ class XSimInterface(SimulatorInterface):
         cmd += ["--incr"]
         cmd += ["--sdfnowarn"]
         cmd += ["--stats"]
-        cmd += ["--O2"]
+        cmd += ["--O0"]
 
         snapshot = "vunit_test"
         cmd += ["--snapshot", snapshot]
 
         enable_glbl = config.sim_options.get(self.name + ".enable_glbl", None)
+
+        cmd += ["-initfile",f"{self._xsimini_path}"]
 
         if enable_glbl == True:
             cmd += [f"{config.library_name}.test_verilog"]
@@ -216,7 +258,7 @@ class XSimInterface(SimulatorInterface):
 
         timescale = config.sim_options.get(self.name + ".timescale", None)
         if timescale:
-            cmd += ["-timescale", timescale]
+            cmd += ["--timescale", timescale]
         dirname = os.path.dirname(self._libraries[config.library_name])
         shutil.copytree(dirname, os.path.join(output_path, os.path.basename(dirname)))
         for generic_name, generic_value in config.generics.items():
@@ -248,6 +290,7 @@ class XSimInterface(SimulatorInterface):
             # Execute XSIM
             if not elaborate_only:
                 tcl_file = os.path.join(output_path, "xsim_startup.tcl")
+                tcl_file = tcl_file.replace(os.path.sep,'/')
 
                 # Gui support
                 if self._gui:
@@ -259,6 +302,8 @@ class XSimInterface(SimulatorInterface):
                     vivado_cmd += ["--gui"]
                     # Include tcl
                     vivado_cmd += ["--tclbatch", tcl_file]
+                    # +Flags
+                    vivado_cmd += self._xsim_extra_args(config)
                 # Command line
                 else:
                     # XSIM binary
@@ -267,6 +312,8 @@ class XSimInterface(SimulatorInterface):
                     vivado_cmd += [snapshot]
                     # Include tcl
                     vivado_cmd += ["--tclbatch", tcl_file]
+                    # +Flags
+                    vivado_cmd += self._xsim_extra_args(config)
 
                 with open(tcl_file, "w+") as xsim_startup_file:
                     if os.path.exists(vcd_path):
