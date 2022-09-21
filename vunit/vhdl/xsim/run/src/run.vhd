@@ -8,6 +8,8 @@
 
 use work.dictionary.all;
 use work.core_pkg;
+use work.check_pkg.all;
+use work.checker_pkg.all;
 
 package body run_pkg is
 
@@ -60,12 +62,19 @@ package body run_pkg is
     allow_disabled_errors : boolean := false;
     allow_disabled_failures : boolean := false;
     fail_on_warning : boolean := false) is
+    variable stat : checker_stat_t;
   begin
     runner(runner_exit_status_idx) <= runner_exit_without_errors;
 
-      core_pkg.test_suite_done;
+    core_pkg.test_suite_done;
 
+    get_checker_stat(default_checker, stat);
+
+    if stat.n_failed = 0 then
       core_pkg.stop(0);
+    else
+      core_pkg.stop(1);
+    end if;
   end procedure test_runner_cleanup;
 
   impure function output_path (

@@ -199,7 +199,7 @@ class XSimInterface(SimulatorInterface):
         cmd += ["--incr"]
         cmd += ["--sdfnowarn"]
         cmd += ["--stats"]
-        cmd += ["--O0"]
+        cmd += ["--O2"]
 
         snapshot = "vunit_test"
         cmd += ["--snapshot", snapshot]
