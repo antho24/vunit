@@ -74,10 +74,10 @@ class Builtins(object):
             if not supports_context and file_name.endswith("_context.vhd"):
                 continue
 
-            if (self._simulator_class.name == "xsim") and file_name.endswith(
-                "_context.vhd"
-            ):
-                continue
+            # if (self._simulator_class.name == "xsim") and file_name.endswith(
+                # "_context.vhd"
+            # ):
+                # continue
 
             self._vunit_lib.add_source_file(file_name)
 
@@ -91,7 +91,8 @@ class Builtins(object):
                              'integer': ['path/to/custom/file']
                          }.
         """
-        if simulator_is("xsim"):
+        #if simulator_is("xsim"):
+        if False:
             self._add_files(VHDL_PATH / "xsim" / "data_types" / "src" / "*.vhd")
 
             use_ext = {"string": False, "integer": False}
@@ -173,7 +174,12 @@ class Builtins(object):
         if not self._vhdl_standard >= VHDL.STD_2008:
             raise RuntimeError("Communication package only supports vhdl 2008 and later")
 
-        self._add_files(VHDL_PATH / "com" / "src" / "*.vhd")
+        #if simulator_is("xsim"):
+        if False:
+            self._add_files(VHDL_PATH / "xsim" / "com" / "src" / "*.vhd")
+
+        else:
+            self._add_files(VHDL_PATH / "com" / "src" / "*.vhd")
 
     def _add_verification_components(self):
         """
@@ -181,7 +187,13 @@ class Builtins(object):
         """
         if not self._vhdl_standard >= VHDL.STD_2008:
             raise RuntimeError("Verification component library only supports vhdl 2008 and later")
-        self._add_files(VHDL_PATH / "verification_components" / "src" / "*.vhd")
+            
+        #if simulator_is("xsim"):
+        if False:
+            self._add_files(VHDL_PATH / "xsim" / "verification_components" / "src" / "*.vhd")
+
+        else:
+            self._add_files(VHDL_PATH / "verification_components" / "src" / "*.vhd")
 
     def _add_library_if_not_exist(self, library_name, message):
         """
@@ -283,7 +295,8 @@ in your VUnit Git repository? You have to do this first if installing using setu
             })
         """
         self._add_data_types(external=external)
-        if simulator_is("xsim"):
+        #if simulator_is("xsim"):
+        if False:
             self._add_files(VHDL_PATH / "*.vhd")
             libraries = [
                 "xsim",
@@ -293,6 +306,7 @@ in your VUnit Git repository? You have to do this first if installing using setu
                 "logging",
                 "check",
                 "run",
+                "path",
             ]
             for path in (libraries):
                 if simulator_is("xsim"):
