@@ -45,6 +45,7 @@ class Configuration(object):  # pylint: disable=too-many-instance-attributes
         self.generics = {} if generics is None else generics
         self.sim_options = {} if sim_options is None else sim_options
         self.attributes = {} if attributes is None else attributes
+        self.resources = []
 
         self.tb_path = str(Path(design_unit.original_file_name).parent)
 
@@ -101,6 +102,12 @@ class Configuration(object):  # pylint: disable=too-many-instance-attributes
             self.attributes[name] = value
         else:
             raise AttributeException
+
+    def set_resources(self, resources):
+        self.resources = resources
+
+    def get_resources(self):
+        return self.resources
 
     def set_generic(self, name, value):
         """

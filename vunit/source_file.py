@@ -341,7 +341,8 @@ class VHDLSourceFile(SourceFile):
 
 
 # lower case representation of supported extensions
-VHDL_EXTENSIONS = (".vhd", ".vhdl", ".vho")
+XILINX_EXTENSIONS = (".mif", ".coe")
+VHDL_EXTENSIONS = (".vhd", ".vhdl", ".vho", ".vhdp")
 VERILOG_EXTENSIONS = (".v", ".vp", ".vams", ".vo")
 SYSTEM_VERILOG_EXTENSIONS = (".sv",)
 VERILOG_FILE_TYPES = ("verilog", "systemverilog")
@@ -361,5 +362,8 @@ def file_type_of(file_name):
 
     if ext.lower() in SYSTEM_VERILOG_EXTENSIONS:
         return "systemverilog"
+
+    if ext.lower() in XILINX_EXTENSIONS:
+        return "xilinx"
 
     raise RuntimeError(f"Unknown file ending '{ext!s}' of {file_name!s}")

@@ -94,10 +94,12 @@ class TestBench(ConfigurationVisitor):
                     "Test bench not allowed to have multiple architectures. " f"Entity {design_unit.name!s} has {archs}"
                 )
 
-    def create_tests(self, simulator_if, elaborate_only, test_list=None):
+    def create_tests(self, simulator_if, elaborate_only, test_list=None, resources=None):
         """
         Create all test cases from this test bench
         """
+        if resources is None:
+            resources = []
 
         self._check_architectures(self.design_unit)
 
@@ -106,7 +108,9 @@ class TestBench(ConfigurationVisitor):
 
         if self._individual_tests:
             for test_case in self._test_cases:
-                test_case.create_tests(simulator_if, elaborate_only, test_list)
+                test_case.create_tests(
+                    simulator_if, elaborate_only, test_list, resources
+                )
         elif self._implicit_test:
             for config in self._get_configurations_to_run():
                 test_list.add_test(
@@ -115,6 +119,7 @@ class TestBench(ConfigurationVisitor):
                         config=config,
                         simulator_if=simulator_if,
                         elaborate_only=elaborate_only,
+                        resources=resources,
                     )
                 )
         else:
@@ -125,6 +130,7 @@ class TestBench(ConfigurationVisitor):
                         config=config,
                         simulator_if=simulator_if,
                         elaborate_only=elaborate_only,
+                        resources=resources,
                     )
                 )
         return test_list
@@ -374,10 +380,13 @@ class TestConfigurationVisitor(ConfigurationVisitor):
             del configs[DEFAULT_NAME]
         return configs.values()
 
-    def create_tests(self, simulator_if, elaborate_only, test_list=None):
+    def create_tests(self, simulator_if, elaborate_only, test_list=None, resources=None):
         """
         Create all tests from this test case which may be several depending on the number of configurations
         """
+        if resources is None:
+            resources = []
+
         for config in self._get_configurations_to_run():
             test_list.add_test(
                 IndependentSimTestCase(
@@ -385,6 +394,7 @@ class TestConfigurationVisitor(ConfigurationVisitor):
                     config=config,
                     simulator_if=simulator_if,
                     elaborate_only=elaborate_only,
+                    resources=resources,
                 )
             )
 
