@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-# Copyright (c) 2014-2022, Lars Asplund lars.anders.asplund@gmail.com
+# Copyright (c) 2014-2023, Lars Asplund lars.anders.asplund@gmail.com
 
 """
 Functionality to represent and operate on VHDL and Verilog source files
@@ -217,7 +217,6 @@ class VHDLSourceFile(SourceFile):
         self._vhdl_standard = vhdl_standard
 
         if not no_parse:
-
             try:
                 design_file = vhdl_parser.parse(self.name)
             except KeyboardInterrupt as exk:

@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-# Copyright (c) 2014-2022, Lars Asplund lars.anders.asplund@gmail.com
+# Copyright (c) 2014-2023, Lars Asplund lars.anders.asplund@gmail.com
 
 """
 Interface towards Aldec Riviera Pro
@@ -92,6 +92,13 @@ class RivieraProInterface(VsimSimulatorMixin, SimulatorInterface):
                 return cls.name
 
         return None
+
+    @classmethod
+    def supports_vhdl_call_paths(cls):
+        """
+        Returns True when this simulator supports VHDL-2019 call paths
+        """
+        return True
 
     @classmethod
     def supports_vhdl_package_generics(cls):
@@ -299,12 +306,17 @@ class RivieraProInterface(VsimSimulatorMixin, SimulatorInterface):
         if config.sim_options.get("disable_ieee_warnings", False):
             vsim_flags.append("-ieee_nowarn")
 
-        # Add the the testbench top-level unit last as coverage is
-        # only collected for the top-level unit specified last
-        vsim_flags += ["-lib", config.library_name, config.entity_name]
+        vsim_flags += ["-lib", config.library_name]
 
-        if config.architecture_name is not None:
-            vsim_flags.append(config.architecture_name)
+        if config.vhdl_configuration_name is None:
+            # Add the the testbench top-level unit last as coverage is
+            # only collected for the top-level unit specified last
+            vsim_flags += [config.entity_name]
+
+            if config.architecture_name is not None:
+                vsim_flags.append(config.architecture_name)
+        else:
+            vsim_flags += [config.vhdl_configuration_name]
 
         tcl = """
 proc vunit_load {{}} {{

@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-# Copyright (c) 2014-2022, Lars Asplund lars.anders.asplund@gmail.com
+# Copyright (c) 2014-2023, Lars Asplund lars.anders.asplund@gmail.com
 
 """
 Contains different kinds of test suites
@@ -272,7 +272,6 @@ class TestRun(object):
         test_suite_done = False
 
         for line in test_results.splitlines():
-
             if line.startswith("test_start:"):
                 test_name = line[len("test_start:") :]
                 if test_name not in test_starts:
@@ -288,7 +287,6 @@ class TestRun(object):
                 results[test_name] = PASSED
 
         for test_name in self._test_cases:
-
             # Anonymous test case
             if test_name is None:
                 results[test_name] = PASSED if test_suite_done else FAILED

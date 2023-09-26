@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-# Copyright (c) 2014-2022, Lars Asplund lars.anders.asplund@gmail.com
+# Copyright (c) 2014-2023, Lars Asplund lars.anders.asplund@gmail.com
 
 """
 Provided functionality to run a suite of test in a robust way
@@ -261,7 +261,6 @@ class TestRunner(object):  # pylint: disable=too-many-instance-attributes
         any_not_passed = any(value != PASSED for value in results.values())
 
         with self._stdout_lock():
-
             if (color_output_file is not None) and (any_not_passed or self._is_verbose) and not self._is_quiet:
                 self._print_output(color_output_file_name)
 

@@ -5,7 +5,7 @@
 -- License, v. 2.0. If a copy of the MPL was not distributed with this file,
 -- You can obtain one at http://mozilla.org/MPL/2.0/.
 --
--- Copyright (c) 2014-2022, Lars Asplund lars.anders.asplund@gmail.com
+-- Copyright (c) 2014-2023, Lars Asplund lars.anders.asplund@gmail.com
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -14,29 +14,48 @@ use work.com_types_pkg.all;
 use work.queue_pkg.all;
 use work.integer_vector_ptr_pkg.all;
 use work.string_ptr_pkg.all;
+use work.id_pkg.all;
+use work.event_private_pkg.all;
 
 package com_pkg is
   -- Global predefined network. See network_t description in com_types.vhd for
   -- more information.
-  signal net : network_t := idle_network;
+  signal net : network_t := new_basic_event(com_net_event);
 
   -----------------------------------------------------------------------------
   -- Handling of actors
   -----------------------------------------------------------------------------
-  -- Create a new actor. Any number of unnamed actors (name = "") can be
-  -- created. Named actors must be unique
+  -- Create a new actor from name. Names must be unique and if no name is given
+  -- (name = "") the actor will be assigned a unique name internally. For each
+  -- new actor an identity for that name will be created if it doesn't already
+  -- exist.
   impure function new_actor (
     name : string := "";
     inbox_size : positive := positive'high;
     outbox_size : positive := positive'high
-    ) return actor_t;
+  ) return actor_t;
+
+  -- Create a new actor an identity. Only one actor can be created for each
+  -- identity.
+  impure function new_actor (
+    id : id_t;
+    inbox_size : positive := positive'high;
+    outbox_size : positive := positive'high
+  ) return actor_t;
 
   -- Find named actor by name. Enable deferred creation to create a deferred
   -- actor when no actor is found
   impure function find (name : string; enable_deferred_creation : boolean := true) return actor_t;
 
+  -- Find named actor by identity. Enable deferred creation to create a deferred
+  -- actor when no actor is found
+  impure function find (id : id_t; enable_deferred_creation : boolean := true) return actor_t;
+
   -- Name of actor
   impure function name (actor : actor_t) return string;
+
+  -- Return identity of actor
+  impure function get_id(actor : actor_t) return id_t;
 
   -- Destroy actor. Mailboxes are deallocated and dependent subscriptions are
   -- removed. Returns null_actor.

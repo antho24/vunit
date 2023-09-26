@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-# Copyright (c) 2014-2022, Lars Asplund lars.anders.asplund@gmail.com
+# Copyright (c) 2014-2023, Lars Asplund lars.anders.asplund@gmail.com
 
 """
 Contains classes to represent a test bench and test cases
@@ -505,7 +505,6 @@ def _check_duplicates(attrs, file_name, test_name=None):
     previous = {}
     for attr in attrs:
         if attr.name in previous:
-
             loc = (
                 "" if test_name is None else f"test {test_name!s} in "
             ) + f"{file_name!s} line {attr.location.lineno:d}"

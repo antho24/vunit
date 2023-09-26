@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-# Copyright (c) 2014-2022, Lars Asplund lars.anders.asplund@gmail.com
+# Copyright (c) 2014-2023, Lars Asplund lars.anders.asplund@gmail.com
 
 """
 Verify that all external run scripts work correctly
@@ -176,7 +176,35 @@ class TestExternalRunScripts(TestCase):
             ],
         )
 
-    @mark.skipif(not simulator_is("ghdl"), reason="Support complex JSON strings as generic")
+    def test_vhdl_configuration_example_project(self):
+        self.check(ROOT / "examples/vhdl/vhdl_configuration/run.py")
+        check_report(
+            self.report_file,
+            [
+                ("passed", "lib.tb_selecting_dut_with_vhdl_configuration.behavioral_16.Test reset"),
+                ("passed", "lib.tb_selecting_dut_with_vhdl_configuration.rtl_16.Test state change"),
+                ("passed", "lib.tb_selecting_dut_with_vhdl_configuration.rtl_32.Test reset"),
+                ("passed", "lib.tb_selecting_dut_with_vhdl_configuration.rtl_8.Test state change"),
+                ("passed", "lib.tb_selecting_dut_with_vhdl_configuration.behavioral_8.Test state change"),
+                ("passed", "lib.tb_selecting_dut_with_vhdl_configuration.rtl_8.Test reset"),
+                ("passed", "lib.tb_selecting_dut_with_vhdl_configuration.behavioral_16.Test state change"),
+                ("passed", "lib.tb_selecting_dut_with_vhdl_configuration.behavioral_8.Test reset"),
+                ("passed", "lib.tb_selecting_dut_with_vhdl_configuration.rtl_16.Test reset"),
+                ("passed", "lib.tb_selecting_test_runner_with_vhdl_configuration.test_reset_rtl_8"),
+                ("passed", "lib.tb_selecting_test_runner_with_vhdl_configuration.test_reset_rtl_16"),
+                ("passed", "lib.tb_selecting_test_runner_with_vhdl_configuration.test_state_change_rtl_16"),
+                ("passed", "lib.tb_selecting_test_runner_with_vhdl_configuration.test_reset_behavioral_16"),
+                ("passed", "lib.tb_selecting_test_runner_with_vhdl_configuration.test_state_change_rtl_8"),
+                ("passed", "lib.tb_selecting_test_runner_with_vhdl_configuration.test_state_change_behavioral_8"),
+                ("passed", "lib.tb_selecting_test_runner_with_vhdl_configuration.test_state_change_behavioral_16"),
+                ("passed", "lib.tb_selecting_test_runner_with_vhdl_configuration.test_reset_behavioral_8"),
+            ],
+        )
+
+    @mark.xfail(
+        not (simulator_is("ghdl") or simulator_is("nvc")),
+        reason="Support complex JSON strings as generic",
+    )
     def test_vhdl_json4vhdl_example_project(self):
         self.check(ROOT / "examples/vhdl/json4vhdl/run.py")
 
@@ -192,6 +220,13 @@ class TestExternalRunScripts(TestCase):
 
     def test_vhdl_axi_dma_example_project(self):
         self.check(ROOT / "examples/vhdl/axi_dma/run.py")
+
+    def test_vhdl_osvvm_log_integration(self):
+        self.check(ROOT / "examples/vhdl/osvvm_log_integration/run.py", exit_code=1)
+        check_report(
+            self.report_file,
+            [("failed", "lib.tb_example.all")],
+        )
 
     @mark.skipif(
         simulator_check(lambda simclass: not simclass.supports_vhdl_contexts()),
@@ -224,9 +259,6 @@ class TestExternalRunScripts(TestCase):
 
     def test_vhdl_com_example_project(self):
         self.check(ROOT / "examples/vhdl/com/run.py")
-
-    def test_array_vhdl_2008(self):
-        self.check(VHDL_PATH / "array/run.py")
 
     def test_data_types_vhdl_2008(self):
         self.check(VHDL_PATH / "data_types/run.py")

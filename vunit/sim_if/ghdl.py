@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-# Copyright (c) 2014-2022, Lars Asplund lars.anders.asplund@gmail.com
+# Copyright (c) 2014-2023, Lars Asplund lars.anders.asplund@gmail.com
 
 """
 Interface for GHDL simulator
@@ -17,7 +17,6 @@ import re
 import shutil
 from json import dump
 from sys import stdout  # To avoid output catched in non-verbose mode
-from warnings import warn
 from ..exceptions import CompileError
 from ..ostools import Process
 from . import SimulatorInterface, ListOfStringOption, StringOption, BooleanOption
@@ -38,7 +37,7 @@ class GHDLInterface(SimulatorInterface):  # pylint: disable=too-many-instance-at
 
     compile_options = [
         ListOfStringOption("ghdl.a_flags"),
-        ListOfStringOption("ghdl.flags"),
+        ListOfStringOption("ghdl.flags"),  # Removed in v5.0.0
     ]
 
     sim_options = [
@@ -126,14 +125,15 @@ class GHDLInterface(SimulatorInterface):  # pylint: disable=too-many-instance-at
         Determine the GHDL backend
         """
         mapping = {
-            "mcode code generator": "mcode",
-            "llvm code generator": "llvm",
-            "GCC back-end code generator": "gcc",
+            r"mcode code generator": "mcode",
+            r"llvm (\d+\.\d+\.\d+ )?code generator": "llvm",
+            r"GCC (back-end|\d+\.\d+\.\d+) code generator": "gcc",
         }
         output = cls._get_version_output(prefix)
         for name, backend in mapping.items():
-            if name in output:
-                LOGGER.debug("Detected GHDL %s", name)
+            match = re.search(name, output)
+            if match:
+                LOGGER.debug("Detected GHDL %s", match.group(0))
                 return backend
 
         LOGGER.error("Could not detect known LLVM backend by parsing 'ghdl --version'")
@@ -236,6 +236,9 @@ class GHDLInterface(SimulatorInterface):  # pylint: disable=too-many-instance-at
         """
         Returns the command to compile a vhdl file
         """
+        if source_file.compile_options.get("ghdl.flags", []) != []:
+            raise RuntimeError("'ghdl.flags was removed in v5.0.0; use 'ghdl.a_flags' instead")
+
         cmd = [
             str(Path(self._prefix) / self.executable),
             "-a",
@@ -246,16 +249,7 @@ class GHDLInterface(SimulatorInterface):  # pylint: disable=too-many-instance-at
         for library in self._project.get_libraries():
             cmd += [f"-P{library.directory!s}"]
 
-        a_flags = source_file.compile_options.get("ghdl.a_flags", [])
-        flags = source_file.compile_options.get("ghdl.flags", [])
-        if flags != []:
-            warn(
-                ("'ghdl.flags' is deprecated and it will be removed in future releases; use 'ghdl.a_flags' instead"),
-                Warning,
-            )
-            a_flags += flags
-
-        cmd += a_flags
+        cmd += source_file.compile_options.get("ghdl.a_flags", [])
 
         if source_file.compile_options.get("enable_coverage", False):
             # Add gcc compilation flags for coverage
@@ -285,7 +279,11 @@ class GHDLInterface(SimulatorInterface):  # pylint: disable=too-many-instance-at
         if config.sim_options.get("enable_coverage", False):
             # Enable coverage in linker
             cmd += ["-Wl,-lgcov"]
-        cmd += [config.entity_name, config.architecture_name]
+
+        if config.vhdl_configuration_name is not None:
+            cmd += [config.vhdl_configuration_name]
+        else:
+            cmd += [config.entity_name, config.architecture_name]
 
         sim = config.sim_options.get("ghdl.sim_flags", [])
         for name, value in config.generics.items():

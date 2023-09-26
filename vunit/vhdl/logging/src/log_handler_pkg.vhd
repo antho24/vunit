@@ -2,7 +2,7 @@
 -- License, v. 2.0. If a copy of the MPL was not distributed with this file,
 -- You can obtain one at http://mozilla.org/MPL/2.0/.
 --
--- Copyright (c) 2014-2022, Lars Asplund lars.anders.asplund@gmail.com
+-- Copyright (c) 2014-2023, Lars Asplund lars.anders.asplund@gmail.com
 
 use work.integer_vector_ptr_pkg.all;
 use work.log_levels_pkg.all;
@@ -62,7 +62,7 @@ package log_handler_pkg is
   ---------------------------------------------
   -- Private parts not intended for public use
   ---------------------------------------------
-  impure function get_id(log_handler : log_handler_t) return natural;
+  impure function get_id_number(log_handler : log_handler_t) return natural;
   procedure update_max_logger_name_length(log_handler : log_handler_t; value : natural);
   impure function get_max_logger_name_length(log_handler : log_handler_t) return natural;
 

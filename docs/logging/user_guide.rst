@@ -1,7 +1,7 @@
 .. _logging_library:
 
-Logging Library
-===============
+Logging Library User Guide
+==========================
 
 Introduction
 ------------
@@ -36,14 +36,35 @@ will use the default logger while
 
     info(my_logger, "Hello world");
 
-will use the custom ``my_logger``.
+will use the custom ``my_logger``. A custom logger is created
+by declaring a constant or a variable of type ``logger_t``.
 
-Log messages are then handled by a log handler. By default there are
-two output handlers, one for handling display (stdout) output and one
-for handling output to a file. Every log entry you do is passed to
-both these handlers. Each handler may have a different output format
-and log level setting. The format is used to control the layout and
-amount of information being displayed.
+.. code-block:: vhdl
+
+    constant my_logger : logger_t := get_logger("system0:uart0");
+
+``get_logger`` will internally create an identity for the name
+provided in the call (see :ref:`identity package <id_user_guide>`)
+which means that the concept of name hierarchy is inherited by
+loggers. In this case a logger will also be created for ``system0``
+if it didn't already exist.
+
+A logger can also be created directly from an identity.
+
+.. code-block:: vhdl
+
+    constant my_id : id_t := get_id("system0:uart0");
+    constant my_logger : logger_t := get_logger(my_id);
+
+Log Handlers
+------------
+
+Log messages made to a logger are handled by a log handler.
+By default there are two handlers, one for handling display (stdout)
+output and one for handling output to a file. Every log entry you do
+is passed to both these handlers. Each handler may have a different
+output format and log level setting. The format is used to control the
+layout and amount of information being displayed.
 
 Log Levels
 ----------
@@ -92,6 +113,37 @@ To make a log entry with the custom level use any of the `log` procedures:
     log("Mozilla Public License, v. 2.0.", license_info);
     log(my_logger, "Mozilla Public License, v. 2.0.", license_info);
 
+Formatting
+----------
+The default display format is ``verbose`` and the default file format
+is ``csv`` to enable simple log file parsing. The format can be
+changed to any of ``raw``, ``level``, ``verbose`` and ``csv``.
+
+.. code-block:: vhdl
+
+    set_format(display_handler, level);
+    info("Hello world");
+
+which will result in the following output.
+
+.. code-block:: console
+
+    INFO: Hello world
+
+The default ``verbose`` format which adds more details to the
+output looks like this:
+
+.. code-block:: console
+
+         1000 ps - default -    INFO - Hello world
+
+The verbose output will always contain the simulator time, the log
+level, the logger, and the message.
+
+The ``raw`` formatter just emits the log message and nothing else. The
+``csv`` formatter emits all information in the log entry as a comma
+separated list for convenient parsing.
+
 Stopping simulation
 -------------------
 By default the simulation will come to a stop if a single log with
@@ -127,38 +179,6 @@ Example:
     -- Short hand for stopping on warning, error and failure for specific logger
     set_stop_level(get_logger("my_library:my_component"), warning)
 
-
-Formatting
-----------
-The default display format is ``verbose`` and the default file format
-is ``csv`` to enable simple log file parsing. The format can be
-changed to any of ``raw``, ``level``, ``verbose`` and ``csv``.
-
-.. code-block:: vhdl
-
-    set_format(display_handler, level);
-    info("Hello world");
-
-which will result in the following output.
-
-.. code-block:: console
-
-    INFO: Hello world
-
-The default ``verbose`` format which adds more details to the
-output looks like this:
-
-.. code-block:: console
-
-         1000 ps - default -    INFO - Hello world
-
-The verbose output will always contain the simulator time, the log
-level, the logger, and the message.
-
-The ``raw`` formatter just emits the log message and nothing else. The
-``csv`` formatter emits all information in the log entry as a comma
-separated list for convenient parsing.
-
 Print Procedure
 ---------------
 
@@ -178,24 +198,6 @@ It's also possible to print to an open file object.
 
 This procedure can be used to optimize performance by printing many messages before flushing or closing the file.
 
-
-Logging hierarchy
------------------
-
-Custom hierarchical loggers can be created to provide more information and control of what is being logged.
-
-.. code-block:: vhdl
-
-    constant temp_logger : logger_t := get_logger("temperature_sensor");
-    warning(temp_logger, "Over-temperature (73 degrees C)!");
-
-results in something like this with the ``verbose`` formatter.
-
-.. code-block:: console
-
-    1000 ps - temperature_sensor -    INFO - Over-temperature (73 degrees C)!
-
-
 Log visibility
 --------------
 
@@ -214,29 +216,6 @@ Log visibility to a log handler can be configured for specific log levels of a l
 
     -- Hide all debug output to display handler
     hide(display_handler, debug);
-
-
-Custom Loggers
---------------
-
-Previous chapters have used the built-in default logger for the
-examples but you can also create your own loggers. You do that by
-declaring a constant of type ``logger_t``.
-
-.. code-block:: vhdl
-
-    constant my_logger : logger_t := get_logger("system0:uart0");
-
-and then you use that variable as the first parameter in the procedure
-calls presented in the previous chapters, for example.
-
-.. code-block:: vhdl
-
-    info(my_logger, "Hello world");
-
-Logger names are hierarchical which means setting the log level of
-``system0`` will also set it for ``uart0``.
-
 
 Mocking
 -------
@@ -300,12 +279,14 @@ counted to get statistics on disabled log messages.
     disable(get_logger("memory_ip:timing_check"), warning);
 
 
+.. _logging_library:LogLocation:
+
 Log Location
 ------------
 
 For simulators supporting VHDL-2019 VUnit adds file name
 and line number location information to all log entries. Currently
-only Riviera-PRO supports VHDL-2019 and it restricts the feature
+only Riviera-PRO and Active-HDL supports VHDL-2019 and they restrict the feature
 to **debug compiled files**. You can compile all files or just the ones
 using logging. For example,
 
@@ -322,6 +303,7 @@ the ``run.py`` file like this:
 .. code-block:: python
 
     ui = VUnit.from_argv()
+    ui.add_vhdl_builtins()
     ui.enable_location_preprocessing()
 
 Regardless of method the location information is appended to the end of the log entry:
@@ -373,6 +355,26 @@ and then let the location preprocessor know about the added procedure
 
     ui = VUnit.from_argv()
     ui.enable_location_preprocessing(additional_subprograms=['my_convenience_procedure'])
+
+External Logging Framework Integration
+--------------------------------------
+
+VUnit provides a package ``common_log_pkg`` providing a single procedure ``write_to_log`` that is used to
+output the string produced by a log entry. The implementation of this procedure can be changed to redirect VUnit log
+messages to a third party logging framework, thereby aligning the logging styles in a testbench with code using several
+logging frameworks. The feature is enabled by passing a reference to the file implementing the package body:
+
+.. code-block:: python
+
+    ui.add_vhdl_builtins(use_external_log="path/to/other/common_log_pkg/body")
+
+The procedure interface is designed to be generic and suitable for third party logging frameworks as well. If provided,
+third party log messages can also be redirected to VUnit logging:
+
+.. literalinclude:: ../../vunit/vhdl/logging/src/common_log_pkg.vhd
+   :language: vhdl
+   :lines: 7-
+
 
 Deprecated Interfaces
 ---------------------

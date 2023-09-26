@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-# Copyright (c) 2014-2022, Lars Asplund lars.anders.asplund@gmail.com
+# Copyright (c) 2014-2023, Lars Asplund lars.anders.asplund@gmail.com
 
 # pylint: disable=too-many-lines
 
@@ -508,6 +508,9 @@ class VHDLEntity(object):
         generic_list = []
         # Add interface elements to the generic list
         for interface_element in interface_elements:
+            if len(interface_element.strip()) == 0:
+                # Ignore space after a trailing comma
+                continue
 
             if cls._package_generic_re.match(interface_element) is not None:
                 # Ignore package generics
@@ -539,6 +542,9 @@ class VHDLEntity(object):
         port_list = []
         # Add interface elements to the port list
         for interface_element in interface_elements:
+            if len(interface_element.strip()) == 0:
+                # Ignore space after a trailing comma
+                continue
             port_list.append(VHDLInterfaceElement.parse(interface_element, is_signal=True))
 
         return port_list

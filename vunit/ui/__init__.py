@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-# Copyright (c) 2014-2022, Lars Asplund lars.anders.asplund@gmail.com
+# Copyright (c) 2014-2023, Lars Asplund lars.anders.asplund@gmail.com
 
 # pylint: disable=too-many-lines
 
@@ -59,14 +59,12 @@ class VUnit(object):  # pylint: disable=too-many-instance-attributes, too-many-p
     def from_argv(
         cls,
         argv=None,
-        compile_builtins: Optional[bool] = True,
         vhdl_standard: Optional[str] = None,
     ):
         """
         Create VUnit instance from command line arguments.
 
         :param argv: Use explicit argv instead of actual command line argument
-        :param compile_builtins: Do not compile builtins. Used for VUnit internal testing.
         :param vhdl_standard: The VHDL standard used to compile files,
                               if None the VUNIT_VHDL_STANDARD environment variable is used
         :returns: A :class:`.VUnit` object instance
@@ -77,28 +75,21 @@ class VUnit(object):  # pylint: disable=too-many-instance-attributes, too-many-p
 
              from vunit import VUnit
              prj = VUnit.from_argv()
+             prj.add_vhdl_builtins()
 
         .. IMPORTANT::
-          Option ``compile_builtins`` is deprecated and it will be removed in an upcoming release.
-          VHDL users will need to call method :meth:`add_vhdl_builtins` explicitly in order to preserve the
+          As of VUnit v5, option ``compile_builtins`` is removed.
+          VHDL users need to call method :meth:`add_vhdl_builtins` explicitly in order to preserve the
           functionality.
           See :vunit_issue:`777`.
-          It is therefore recommended to now use the following procedure:
-
-          .. code-block:: python
-
-             from vunit import VUnit
-             prj = VUnit.from_argv(compile_builtins=False)
-             prj.add_vhdl_builtins()
         """
         args = VUnitCLI().parse_args(argv=argv)
-        return cls.from_args(args, compile_builtins=compile_builtins, vhdl_standard=vhdl_standard)
+        return cls.from_args(args, vhdl_standard=vhdl_standard)
 
     @classmethod
     def from_args(
         cls,
         args,
-        compile_builtins: Optional[bool] = True,
         vhdl_standard: Optional[str] = None,
     ):
         """
@@ -108,23 +99,21 @@ class VUnit(object):  # pylint: disable=too-many-instance-attributes, too-many-p
         adding custom command line options.
 
         :param args: The parsed argument namespace object
-        :param compile_builtins: Do not compile builtins. Used for VUnit internal testing.
         :param vhdl_standard: The VHDL standard used to compile files,
                               if None the VUNIT_VHDL_STANDARD environment variable is used
         :returns: A :class:`.VUnit` object instance
 
         .. IMPORTANT::
-          Option ``compile_builtins`` is deprecated and it will be removed in an upcoming release.
-          VHDL users will need to call method :meth:`add_vhdl_builtins` explicitly in order to preserve the
+          As of VUnit v5, option ``compile_builtins`` is removed.
+          VHDL users need to call method :meth:`add_vhdl_builtins` explicitly in order to preserve the
           functionality.
           See :vunit_issue:`777`.
         """
-        return cls(args, compile_builtins=compile_builtins, vhdl_standard=vhdl_standard)
+        return cls(args, vhdl_standard=vhdl_standard)
 
     def __init__(
         self,
         args,
-        compile_builtins: Optional[bool] = True,
         vhdl_standard: Optional[str] = None,
     ):
         self._resources = []
@@ -150,9 +139,7 @@ class VUnit(object):  # pylint: disable=too-many-instance-attributes, too-many-p
         self._test_filter = test_filter
         self._vhdl_standard: VHDLStandard = select_vhdl_standard(vhdl_standard)
 
-        self._external_preprocessors = []  # type: ignore
-        self._location_preprocessor = None
-        self._check_preprocessor = None
+        self._preprocessors = []  # type: ignore
 
         self._simulator_class = SIMULATOR_FACTORY.select_simulator()
 
@@ -175,22 +162,6 @@ class VUnit(object):  # pylint: disable=too-many-instance-attributes, too-many-p
         self._test_bench_list = TestBenchList(database=database)
 
         self._builtins = Builtins(self, self._vhdl_standard, simulator_class)
-        if compile_builtins:
-            self.add_vhdl_builtins()
-            hline = "=" * 75
-            print(hline)
-            LOGGER.warning(
-                """Option 'compile_builtins' of methods 'from_args' and 'from_argv' is deprecated.
-In future releases, it will be removed and builtins will need to be added explicitly.
-To prepare for upcoming changes, it is recommended to apply the following modifications in the run script now:
-
-* Use `from_argv(compile_builtins=False)` or `from_args(compile_builtins=False)`.
-* Add an explicit call to 'add_vhdl_builtins'.
-
-See https://github.com/VUnit/vunit/issues/777.
-"""
-            )
-            print(hline)
 
     def _create_database(self):
         """
@@ -638,19 +609,19 @@ See https://github.com/VUnit/vunit/issues/777.
     def _preprocess(self, library_name: str, file_name: Union[str, Path], preprocessors):
         """
         Preprocess file_name within library_name using explicit preprocessors
-        if preprocessors is None then use implicit globally defined processors
+        if preprocessors is None then use implicit globally defined preprocessors.
         """
         # @TODO dependency checking etc...
 
         if preprocessors is None:
-            preprocessors = [self._location_preprocessor, self._check_preprocessor]
-            preprocessors = [p for p in preprocessors if p is not None]
-            preprocessors = self._external_preprocessors + preprocessors
+            preprocessors = self._preprocessors
 
         fstr = str(file_name)
 
         if not preprocessors:
             return fstr
+
+        preprocessors.sort(key=lambda x: 0 if not hasattr(x, "order") else x.order)
 
         fname = str(Path(file_name).name)
 
@@ -680,11 +651,13 @@ See https://github.com/VUnit/vunit/issues/777.
 
     def add_preprocessor(self, preprocessor):
         """
-        Add a custom preprocessor to be used on all files, must be called before adding any files
-        """
-        self._external_preprocessors.append(preprocessor)
+        Adds a custom preprocessor to be used on all files. Must be called before adding any files.
 
-    def enable_location_preprocessing(self, additional_subprograms=None, exclude_subprograms=None):
+        :param preprocessor: Instance of of :class:`.Preprocessor`
+        """
+        self._preprocessors.append((preprocessor))
+
+    def enable_location_preprocessing(self, additional_subprograms=None, exclude_subprograms=None, order=100):
         """
         Inserts file name and line number information into VUnit check and log subprograms calls. Custom
         subprograms can also be added. Must be called before adding any files.
@@ -692,6 +665,8 @@ See https://github.com/VUnit/vunit/issues/777.
         :param additional_subprograms: List of custom subprograms to add the line_num and file_name parameters to.
         :param exclude_subprograms: List of VUnit subprograms to exclude from location preprocessing. Used to \
 avoid location preprocessing of other functions sharing name with a VUnit log or check subprogram.
+        :param order: Integer controlling in which order the location preprocessor is applied in relation to \
+other preprocessors. Lowest value first. The order between preprocessors with the same value is undefined.
 
         :example:
 
@@ -701,7 +676,7 @@ avoid location preprocessing of other functions sharing name with a VUnit log or
                                              exclude_subprograms=['log'])
 
         """
-        preprocessor = LocationPreprocessor()
+        preprocessor = LocationPreprocessor(order)
         if additional_subprograms is not None:
             for subprogram in additional_subprograms:
                 preprocessor.add_subprogram(subprogram)
@@ -709,13 +684,18 @@ avoid location preprocessing of other functions sharing name with a VUnit log or
         if exclude_subprograms is not None:
             for subprogram in exclude_subprograms:
                 preprocessor.remove_subprogram(subprogram)
-        self._location_preprocessor = preprocessor
 
-    def enable_check_preprocessing(self):
+        self.add_preprocessor(preprocessor)
+
+    def enable_check_preprocessing(self, order=200):
         """
-        Inserts error context information into VUnit check_relation calls
+        Inserts error context information into VUnit check_relation calls.
+
+        :param order: Integer controlling in which order the check preprocessor is applied in relation to \
+other preprocessors. Lowest value first. The order between preprocessors with the same value is undefined.
+
         """
-        self._check_preprocessor = CheckPreprocessor()
+        self.add_preprocessor(CheckPreprocessor(order))
 
     def main(self, post_run=None):
         """
@@ -844,10 +824,10 @@ avoid location preprocessing of other functions sharing name with a VUnit log or
         files = []
         for source_file in file_objects:
             files.append(
-                dict(
-                    file_name=str(Path(source_file.name).resolve()),
-                    library_name=source_file.library.name,
-                )
+                {
+                    "file_name": str(Path(source_file.name).resolve()),
+                    "library_name": source_file.library.name,
+                }
             )
 
         tests = []
@@ -867,25 +847,25 @@ avoid location preprocessing of other functions sharing name with a VUnit log or
                 attributes.update(config.attributes)
 
                 tests.append(
-                    dict(
-                        name=name,
-                        location=dict(
-                            file_name=str(info.location.file_name),
-                            offset=info.location.offset,
-                            length=info.location.length,
-                        ),
-                        attributes=attributes,
-                    )
+                    {
+                        "name": name,
+                        "location": {
+                            "file_name": str(info.location.file_name),
+                            "offset": info.location.offset,
+                            "length": info.location.length,
+                        },
+                        "attributes": attributes,
+                    }
                 )
 
-        json_data = dict(
+        json_data = {
             # The semantic version (https://semver.org/) of the JSON export data format
-            export_format_version=dict(major=1, minor=0, patch=0),
+            "export_format_version": {"major": 1, "minor": 0, "patch": 0},
             # The set of files added to the project
-            files=files,
+            "files": files,
             # The list of all tests
-            tests=tests,
-        )
+            "tests": tests,
+        }
 
         with Path(json_file_name).open("w", encoding="utf-8") as fptr:
             json.dump(json_data, fptr, sort_keys=True, indent=4, separators=(",", ": "))
@@ -989,17 +969,19 @@ avoid location preprocessing of other functions sharing name with a VUnit log or
         Add VUnit Verilog builtin libraries.
 
         .. IMPORTANT::
-          Class ``vunit.verilog`` is deprecated and it will be removed in an upcoming release.
-          Verilog users will need to call this method explicitly in order to preserve the functionality.
+          As of VUnit v5, class ``vunit.verilog`` is removed.
+          Verilog users need to call this method explicitly in order to preserve the functionality.
           See :vunit_issue:`777`.
         """
         self._builtins.add_verilog_builtins()
 
-    def add_vhdl_builtins(self, external=None):
+    def add_vhdl_builtins(self, external=None, use_external_log=None):
         """
         Add VUnit VHDL builtin libraries.
 
         :param external: struct to provide bridges for the external VHDL API.
+        :param use_external_log: path to external implementation of common_log_pkg-body to allow
+            VUnit log messages to be redirected to another logging framework.
 
         :example:
 
@@ -1011,12 +993,11 @@ avoid location preprocessing of other functions sharing name with a VUnit log or
             )
 
         .. IMPORTANT::
-          Option ``compile_builtins`` of methods :meth:`from_argv` and :meth:`from_args` is deprecated and it will be
-          removed in an upcoming release.
-          VHDL users will need to call this method explicitly in order to preserve the functionality.
+          As of VUnit v5, option ``compile_builtins`` of methods :meth:`from_argv` and :meth:`from_args` is removed.
+          VHDL users need to call this method explicitly in order to preserve the functionality.
           See :vunit_issue:`777`.
         """
-        self._builtins.add_vhdl_builtins(external=external)
+        self._builtins.add_vhdl_builtins(external=external, use_external_log=use_external_log)
 
     def add_com(self):
         """

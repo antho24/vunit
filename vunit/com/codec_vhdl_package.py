@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-# Copyright (c) 2014-2022, Lars Asplund lars.anders.asplund@gmail.com
+# Copyright (c) 2014-2023, Lars Asplund lars.anders.asplund@gmail.com
 
 """
 Module containing the CodecVHDLPackage class.
@@ -89,7 +89,10 @@ class CodecVHDLPackage(VHDLPackage):
                 type=all_msg_types_enumeration_type.identifier
             )
 
-        (new_declarations, new_definitions,) = self._generate_enumeration_codec_and_to_string_functions(
+        (
+            new_declarations,
+            new_definitions,
+        ) = self._generate_enumeration_codec_and_to_string_functions(
             all_msg_types_enumeration_type, msg_type_enumeration_types
         )
         declarations += new_declarations
@@ -177,7 +180,6 @@ class CodecVHDLPackage(VHDLPackage):
         for enum in self.enumeration_types + (
             [all_msg_types_enumeration_type] if all_msg_types_enumeration_type is not None else []
         ):
-
             if enum.identifier in msg_type_enumeration_types:
                 offset = enumeration_offset
                 enumeration_offset += len(enum.literals)

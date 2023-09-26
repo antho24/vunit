@@ -4,7 +4,7 @@
 -- License, v. 2.0. If a copy of the MPL was not distributed with this file,
 -- You can obtain one at http://mozilla.org/MPL/2.0/.
 --
--- Copyright (c) 2014-2022, Lars Asplund lars.anders.asplund@gmail.com
+-- Copyright (c) 2014-2023, Lars Asplund lars.anders.asplund@gmail.com
 
 library ieee;
 use ieee.std_logic_1164.all;
@@ -37,14 +37,33 @@ package body com_pkg is
     return messenger.create(name, inbox_size, outbox_size);
   end;
 
+  impure function new_actor (
+    id : id_t;
+    inbox_size : positive := positive'high;
+    outbox_size : positive := positive'high
+  ) return actor_t is
+  begin
+    return messenger.create(id, inbox_size, outbox_size);
+  end;
+
   impure function find (name : string; enable_deferred_creation : boolean := true) return actor_t is
   begin
     return messenger.find(name, enable_deferred_creation);
   end;
 
+  impure function find (id : id_t; enable_deferred_creation : boolean := true) return actor_t is
+  begin
+    return messenger.find(id, enable_deferred_creation);
+  end;
+
   impure function name (actor : actor_t) return string is
   begin
     return messenger.name(actor);
+  end;
+
+  impure function get_id(actor : actor_t) return id_t is
+  begin
+    return messenger.get_id(actor);
   end;
 
   procedure destroy (actor : inout actor_t) is
@@ -129,17 +148,17 @@ package body com_pkg is
 
     if msg.sender /= null_actor then
       if messenger.has_subscribers(msg.sender, outbound) then
-        wait_on_subscribers(msg.sender, (0             => outbound), timeout - (now - t_start));
+        wait_on_subscribers(msg.sender, (0 => outbound), timeout - (now - t_start));
         messenger.internal_publish(msg.sender, msg, (0 => outbound));
       end if;
     end if;
 
     if (mailbox_id = inbox) and messenger.has_subscribers(receiver, inbound) then
-      wait_on_subscribers(receiver, (0             => inbound), timeout - (now - t_start));
+      wait_on_subscribers(receiver, (0 => inbound), timeout - (now - t_start));
       messenger.internal_publish(receiver, msg, (0 => inbound));
     end if;
 
-    notify(net);
+    notify_net(net);
     msg.data := null_queue;
   end;
 
@@ -251,7 +270,7 @@ package body com_pkg is
   begin
     wait_on_subscribers(sender, (published, outbound), timeout);
     messenger.publish(sender, msg, (published, outbound));
-    notify(net);
+    notify_net(net);
     recycle(queue_pool, msg.data);
   end;
 
@@ -379,7 +398,7 @@ package body com_pkg is
     messenger.delete_envelope(actor, position, mailbox_id);
 
     if started_with_full_mailbox then
-      notify(net);
+      notify_net(net);
     end if;
   end;
 

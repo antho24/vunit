@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-# Copyright (c) 2014-2022, Lars Asplund lars.anders.asplund@gmail.com
+# Copyright (c) 2014-2023, Lars Asplund lars.anders.asplund@gmail.com
 
 """
 Interface towards Mentor Graphics ModelSim
@@ -258,6 +258,12 @@ class ModelSimInterface(VsimSimulatorMixin, SimulatorInterface):  # pylint: disa
             coverage_save_cmd = ""
             coverage_args = ""
 
+        simulation_target = (
+            config.library_name + "." + config.entity_name + architecture_suffix
+            if config.vhdl_configuration_name is None
+            else config.library_name + "." + config.vhdl_configuration_name
+        )
+
         vsim_flags = [
             f"-wlf {{{fix_path(str(Path(output_path) / 'vsim.wlf'))!s}}}",
             "-quiet",
@@ -266,7 +272,7 @@ class ModelSimInterface(VsimSimulatorMixin, SimulatorInterface):  # pylint: disa
             "-onfinish stop",
             pli_str,
             set_generic_str,
-            config.library_name + "." + config.entity_name + architecture_suffix,
+            simulation_target,
             coverage_args,
             self._vsim_extra_args(config),
         ]
@@ -279,7 +285,7 @@ class ModelSimInterface(VsimSimulatorMixin, SimulatorInterface):  # pylint: disa
         for library in self._libraries:
             vsim_flags += ["-L", library.name]
 
-        vhdl_assert_stop_level_mapping = dict(warning=1, error=2, failure=3)
+        vhdl_assert_stop_level_mapping = {"warning": 1, "error": 2, "failure": 3}
 
         tcl = """
 proc vunit_load {{{{vsim_extra_args ""}}}} {{

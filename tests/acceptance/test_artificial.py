@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-# Copyright (c) 2014-2022, Lars Asplund lars.anders.asplund@gmail.com
+# Copyright (c) 2014-2023, Lars Asplund lars.anders.asplund@gmail.com
 
 """
 Acceptance test of VUnit end to end functionality
@@ -244,5 +244,17 @@ EXPECTED_REPORT = (
     (
         "failed",
         "lib.tb_assert_stop_level.Report failure when VHDL assert stop level = failure",
+    ),
+    (
+        "passed",
+        "lib.tb_with_vhdl_configuration.test 1",
+    ),
+    (
+        "passed",
+        "lib.tb_with_vhdl_configuration.cfg2.test 2",
+    ),
+    (
+        "passed",
+        "lib.tb_with_vhdl_configuration.cfg3.test 3",
     ),
 )

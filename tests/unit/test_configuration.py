@@ -2,7 +2,7 @@
 # License, v. 2.0. If a copy of the MPL was not distributed with this file,
 # You can obtain one at http://mozilla.org/MPL/2.0/.
 #
-# Copyright (c) 2014-2022, Lars Asplund lars.anders.asplund@gmail.com
+# Copyright (c) 2014-2023, Lars Asplund lars.anders.asplund@gmail.com
 
 # pylint: disable=too-many-public-methods
 
@@ -148,7 +148,6 @@ class TestConfiguration(unittest.TestCase):
         )
 
     def test_call_post_check_with_output(self):
-
         output_string = "123___foo\n\nbar"
 
         def read_output():
